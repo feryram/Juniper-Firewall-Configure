@@ -1,0 +1,213 @@
+## Last changed: 2017-11-18 20:00:52 UTC
+version 12.1X44-D45.2;
+system {
+    root-authentication {
+        encrypted-password "$1$vtdrvPxG$xKkz0X7JOfoOHKjo08CzR1"; ## SECRET-DATA
+    }
+    login {
+        user team5 {
+            uid 2006;
+            class super-user;
+            authentication {
+                encrypted-password "$1$u.eq2wss$sXw5O/kadBCUFCeFYJNGV1"; ## SECRET-DATA
+            }
+        }
+    }
+    services {
+        ssh;
+        telnet;
+        dhcp {
+            default-lease-time 3600;
+            domain-name bootcamp;
+            name-server {
+                192.168.1.1;
+                8.8.8.8;
+            }
+            router {
+                10.11.12.1;
+            }
+            pool 10.11.12.0/26 {
+                address-range low 10.11.12.2 high 10.11.12.62;
+            }
+        }
+    }
+}
+interfaces {
+    fe-0/0/0 {
+        unit 0 {
+            description **PEERING-TO-ISP**;
+            family inet {
+                address 192.168.1.5/24;
+            }
+        }
+    }
+    fe-0/0/1 {
+        unit 0 {
+            description **TO-WIFI-AP**;
+            family inet {
+                address 10.11.12.1/26;
+            }
+        }
+    }
+    fe-0/0/2 {
+        unit 0 {
+            description **TO-LAN-DEPLOY**;
+            family inet {
+                address 172.16.31.14/28;
+            }
+        }
+    }
+    fe-0/0/3 {
+        unit 0 {
+            description **WORKSTATION**;
+            family inet {
+                address 10.11.11.1/26;
+            }
+        }
+    }
+}
+routing-options {
+    static {
+        route 0.0.0.0/0 next-hop 192.168.1.1;
+        route 192.168.10.0/24 next-hop 172.16.31.3;
+        route 192.168.20.0/24 next-hop 172.16.31.1;
+        route 172.16.34.0/24 next-hop 172.16.31.4;
+    }
+}
+security {
+    nat {
+        source {
+            rule-set permit-internet {
+                from zone WIFI-AP;
+                to zone UNTRUST;
+                rule internet-access {
+                    match {
+                        source-address 0.0.0.0/0;
+                        destination-address 0.0.0.0/0;
+                    }
+                    then {
+                        source-nat {
+                            interface;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    policies {
+        from-zone UNTRUST to-zone WIFI-AP {
+            policy UNTRUST-TO-WIFI {
+                match {
+                    source-address any;
+                    destination-address any;
+                    application any;
+                }
+                then {
+                    permit;
+                }
+            }
+        }
+        from-zone WIFI-AP to-zone UNTRUST {
+            policy WIFI-TO-ISP {
+                match {
+                    source-address any;
+                    destination-address any;
+                    application any;
+                }
+                then {
+                    permit;
+                }
+            }
+        }
+        from-zone LAB-DEPLOY to-zone UNTRUST {
+            policy LAB-TO-UNTRUST {
+                match {
+                    source-address any;
+                    destination-address any;
+                    application any;
+                }
+                then {
+                    permit;
+                }
+            }
+        }
+        from-zone UNTRUST to-zone LAB-DEPLOY {
+            policy UNTRUST-TO-LAB {
+                match {
+                    source-address any;
+                    destination-address any;
+                    application any;
+                }
+                then {
+                    permit;
+                }
+            }
+        }
+        from-zone WIFI-AP to-zone LAB-DEPLOY {
+            policy WIFI-TO-LAB {
+                match {
+                    source-address any;
+                    destination-address any;
+                    application any;
+                }
+                then {
+                    permit;
+                }
+            }
+        }
+    }
+    zones {
+        security-zone UNTRUST {
+            interfaces {
+                fe-0/0/0.0 {
+                    host-inbound-traffic {
+                        system-services {
+                            ssh;
+                            telnet;
+                            http;
+                            https;
+                            ping;
+                        }
+                    }
+                }
+            }
+        }
+        security-zone WIFI-AP {
+            interfaces {
+                fe-0/0/1.0 {
+                    host-inbound-traffic {
+                        system-services {
+                            http;
+                            https;
+                            dhcp;
+                            ssh;
+                            telnet;
+                        }
+                    }
+                }
+            }
+        }
+        security-zone LAB-DEPLOY {
+            interfaces {
+                fe-0/0/2.0 {
+                    host-inbound-traffic {
+                        system-services {
+                            all;
+                        }
+                    }
+                }
+            }
+        }
+        security-zone WORKSTATION {
+            interfaces {
+                fe-0/0/3.0 {
+                    host-inbound-traffic {
+                        system-services {
+                            all;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
